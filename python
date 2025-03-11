@@ -1,0 +1,89 @@
+import tkinter as tk
+from tkinter import messagebox
+import threading
+import time
+import pyautogui
+
+class ClickerApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("连点器")
+        self.root.geometry("300x200")
+        
+        # 界面组件
+        self.label_freq = tk.Label(root, text="每秒点击次数：")
+        self.label_freq.pack(pady=5)
+        
+        self.entry_freq = tk.Entry(root, width=10)
+        self.entry_freq.pack(pady=5)
+        self.entry_freq.insert(0, "10")  # 默认值
+        
+        self.label_duration = tk.Label(root, text="持续时间（秒）：")
+        self.label_duration.pack(pady=5)
+        
+        self.entry_duration = tk.Entry(root, width=10)
+        self.entry_duration.pack(pady=5)
+        self.entry_duration.insert(0, "10")  # 默认值
+        
+        self.start_btn = tk.Button(root, text="开始", command=self.start_clicking)
+        self.start_btn.pack(pady=10)
+        
+        self.stop_btn = tk.Button(root, text="停止", command=self.stop_clicking, state=tk.DISABLED)
+        self.stop_btn.pack(pady=5)
+        
+        self.remaining_time = tk.Label(root, text="剩余时间：0秒")
+        self.remaining_time.pack(pady=5)
+        
+        # 线程控制变量
+        self.running = False
+        self.click_thread = None
+
+    def start_clicking(self):
+        # 验证输入
+        try:
+            freq = int(self.entry_freq.get())
+            duration = int(self.entry_duration.get())
+            if freq <= 0 or duration <= 0:
+                raise ValueError
+        except ValueError:
+            messagebox.showerror("错误", "请输入有效的数字且数值需大于0！")
+            return
+        
+        # 启动点击线程
+        self.running = True
+        self.click_thread = threading.Thread(target=self.click_loop, args=(freq, duration))
+        self.click_thread.daemon = True  # 确保线程随主程序退出
+        
+        # 更新界面状态
+        self.start_btn.config(state=tk.DISABLED)
+        self.stop_btn.config(state=tk.NORMAL)
+        self.remaining_time.config(text=f"剩余时间：{duration}秒")
+        
+        self.click_thread.start()
+
+    def click_loop(self, freq, duration):
+        interval = 1 / freq
+        end_time = time.time() + duration
+        while time.time() < end_time and self.running:
+            pyautogui.click()
+            time.sleep(interval)
+            remaining = int(end_time - time.time())
+            self.root.after(100, self.update_time_label, remaining)
+        
+        # 点击结束后重置界面
+        if self.running:
+            self.stop_clicking()
+
+    def stop_clicking(self):
+        self.running = False
+        self.start_btn.config(state=tk.NORMAL)
+        self.stop_btn.config(state=tk.DISABLED)
+        self.remaining_time.config(text="剩余时间：0秒")
+
+    def update_time_label(self, remaining):
+        self.remaining_time.config(text=f"剩余时间：{remaining}秒")
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = ClickerApp(root)
+    root.mainloop()
